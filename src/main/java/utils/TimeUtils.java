@@ -10,6 +10,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class TimeUtils {
+    public static boolean isISOFormat(String timestampStr) {
+        // ISO 8601 có dạng: yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX
+        return timestampStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}[+-]\\d{2}:\\d{2}$");
+    }
+
 
     // Map chuyển đổi tháng từ tiếng Việt sang tiếng Anh
     private static final Map<String, String> monthMap = new HashMap<>();
@@ -36,26 +41,31 @@ public class TimeUtils {
      */
     public static Date parseTimestamp(String timestampStr) {
         try {
-            // Tách chuỗi để xử lý tháng, ngày và thời gian
-            String[] parts = timestampStr.split(" ");
-            if (parts.length < 4) {
-                throw new ParseException("Chuỗi thời gian không đầy đủ: " + timestampStr, 0);
+            if (isISOFormat(timestampStr)) {
+                // Định dạng ISO 8601
+                SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX");
+                return isoFormat.parse(timestampStr);
+            } else {
+                // Định dạng log tiếng Việt
+                String[] parts = timestampStr.split(" ");
+                if (parts.length < 4) {
+                    throw new ParseException("Chuỗi thời gian không đầy đủ: " + timestampStr, 0);
+                }
+
+                String month = parts[0] + " " + parts[1]; // vd: "Thg 12"
+                String day = parts[2];                   // vd: "04"
+                String time = parts[3];                  // vd: "15:53:12"
+
+                // Chuyển tháng từ tiếng Việt sang tiếng Anh
+                String monthInEnglish = monthMap.getOrDefault(month, "Jan");
+
+                // Tạo chuỗi thời gian phù hợp với định dạng SimpleDateFormat
+                String formattedTimestamp = monthInEnglish + " " + day + " " + time;
+
+                // Định dạng thời gian: "Dec 04 15:53:12"
+                SimpleDateFormat sdf = new SimpleDateFormat("MMM dd HH:mm:ss");
+                return sdf.parse(formattedTimestamp);
             }
-
-            String month = parts[0] + " " + parts[1]; // vd: "Thg 12"
-            String day = parts[2];                   // vd: "04"
-            String time = parts[3];                  // vd: "15:53:12"
-
-            // Chuyển tháng từ tiếng Việt sang tiếng Anh
-            String monthInEnglish = monthMap.getOrDefault(month, "Jan");
-
-            // Tạo chuỗi thời gian phù hợp với định dạng SimpleDateFormat
-            String formattedTimestamp = monthInEnglish + " " + day + " " + time;
-
-            // Định dạng thời gian: "Dec 04 15:53:12"
-            SimpleDateFormat sdf = new SimpleDateFormat("MMM dd HH:mm:ss");
-            return sdf.parse(formattedTimestamp);
-
         } catch (ParseException e) {
             // Ghi log lỗi và trả về null
             System.err.println("Lỗi khi chuyển đổi thời gian từ log: " + timestampStr);
@@ -63,6 +73,23 @@ public class TimeUtils {
             return null;
         }
     }
+
+    public static Date parseUserFriendlyTimestamp(String timestampStr) {
+        try {
+            // Thử định dạng đơn giản yyyy-MM-dd HH:mm:ss
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            return simpleDateFormat.parse(timestampStr);
+        } catch (ParseException e1) {
+            try {
+                // Thử định dạng cũ (Thg 11 21 23:50:00)
+                return parseTimestamp(timestampStr); // Gọi phương thức parseTimestamp hiện tại
+            } catch (Exception e2) {
+                System.err.println("Lỗi: Thời gian không hợp lệ - " + timestampStr);
+                return null;
+            }
+        }
+    }
+
 
 
 
@@ -78,35 +105,3 @@ public class TimeUtils {
     }
 }
 
-/*
-   public static void main(String[] args) {
-    String logTime = "Thg 11 21 23:50:03"; // Dữ liệu mẫu
-    Date parsedDate = TimeUtils.parseTimestamp(logTime);
-    if (parsedDate != null) {
-        System.out.println("Thời gian đã chuyển đổi: " + parsedDate);
-    } else {
-        System.out.println("Không thể chuyển đổi thời gian từ log.");
-    }
-}
-
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
-public class Main {
-    public static void main(String[] args) throws Exception {
-        String logTime = "Thg 11 21 23:50:03";
-        Date parsedLogTime = TimeUtils.parseTimestamp(logTime);
-
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        Date startTime = sdf.parse("2022-11-21 23:00:00");
-        Date endTime = sdf.parse("2022-11-21 23:59:59");
-
-        if (TimeUtils.isWithinTimeRange(parsedLogTime, startTime, endTime)) {
-            System.out.println("Log nằm trong khoảng thời gian.");
-        } else {
-            System.out.println("Log không nằm trong khoảng thời gian.");
-        }
-    }
-}
-
-*/

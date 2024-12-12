@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.chart.PieChart?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns:fx="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="controller.MainController" spacing="10" alignment="center" padding="10">
+    <!-- Tổng quan -->
+    <HBox spacing="20" alignment="center">
+        <VBox>
+            <Label text="Total Request:"/>
+            <Label fx:id="totalRequestLabel" text="0"/>
+        </VBox>
+        <VBox>
+            <Label text="Total Fail:"/>
+            <Label fx:id="totalFailLabel" text="0"/>
+        </VBox>
+        <VBox>
+            <Label text="Total Size:"/>
+            <Label fx:id="totalSizeLabel" text="0 bytes"/>
+        </VBox>
+    </HBox>
+
+    <!-- Biểu đồ -->
+    <PieChart fx:id="requestPieChart" prefWidth="500" prefHeight="300"/>
+
+    <!-- Tìm kiếm và lọc -->
+    <HBox spacing="10" alignment="center">
+        <Label text="From:"/>
+        <DatePicker fx:id="fromDatePicker"/>
+        <Label text="To:"/>
+        <DatePicker fx:id="toDatePicker"/>
+        <TextField fx:id="searchField" promptText="Search IP or Protocol"/>
+        <Button text="Search" onAction="#onSearchClicked"/>
+    </HBox>
+
+    <!-- Bảng hiển thị log -->
+    <TableView fx:id="logTable" prefWidth="800" prefHeight="400">
+        <columns>
+            <TableColumn fx:id="timestampColumn" text="Timestamp"/>
+            <TableColumn fx:id="sourceIPColumn" text="Source IP"/>
+            <TableColumn fx:id="destinationIPColumn" text="Destination IP"/>
+            <TableColumn fx:id="protocolColumn" text="Protocol"/>
+            <TableColumn fx:id="lengthColumn" text="Length"/>
+            <TableColumn fx:id="statusColumn" text="Status"/>
+        </columns>
+    </TableView>
+</VBox>

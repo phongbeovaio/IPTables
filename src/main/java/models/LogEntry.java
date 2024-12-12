@@ -1,4 +1,3 @@
-// class đại diện cho 1 dòng log
 package models;
 import java.util.Date;
 
@@ -15,11 +14,12 @@ public class LogEntry {
     private String inInterface;      // Interface vào (IN)
     private String outInterface;     // Interface ra (OUT)
     private String logType;          // Loại log (INPUT/OUTPUT)
+    private String status;           // Trạng thái log (SUCCESS/FAIL)
 
     // Constructor
     public LogEntry(Date timestamp, String sourceIP, String destinationIP, String sourcePort,
                     String destinationPort, String protocol, int length, int packetCount, int byteCount,
-                    String inInterface, String outInterface, String logType) {
+                    String inInterface, String outInterface, String logType, String status) {
         this.timestamp = timestamp;
         this.sourceIP = sourceIP;
         this.destinationIP = destinationIP;
@@ -32,6 +32,7 @@ public class LogEntry {
         this.inInterface = inInterface;
         this.outInterface = outInterface;
         this.logType = logType;
+        this.status = status; // Gán trạng thái
     }
 
     // Getters and Setters
@@ -70,5 +71,7 @@ public class LogEntry {
 
     public String getLogType() { return logType; }
     public void setLogType(String logType) { this.logType = logType; }
-}
 
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+}

@@ -1,6 +1,3 @@
-// Tính toán thong ke
-// Tính toán thông lượng từ trường LEN trong log
-// Tinh so luong request trong khung thoi gian nao do
 package log;
 
 import models.LogEntry;
@@ -30,9 +27,21 @@ public class LogAnalyzer {
     public static int calculateThroughput(List<LogEntry> logEntries) {
         int totalLength = 0;
         for (LogEntry entry : logEntries) {
-            totalLength += entry.getLength(); // Cộng dồn chiều dài của mỗi gói tin
+            totalLength += entry.getLength();
         }
         return totalLength;
+    }
+
+    /**
+     * Tính số lượng request bị chặn (status = FAIL).
+     *
+     * @param logEntries Danh sách log đã phân tích.
+     * @return Tổng số request bị chặn.
+     */
+    public static int calculateBlockedRequests(List<LogEntry> logEntries) {
+        return (int) logEntries.stream()
+                .filter(entry -> "FAIL".equals(entry.getStatus()))
+                .count();
     }
 
     /**
@@ -52,22 +61,4 @@ public class LogAnalyzer {
         }
         return count;
     }
-
-    /**
-     * Tính số lượng request theo loại log (INPUT hoặc OUTPUT).
-     *
-     * @param logEntries Danh sách các log đã phân tích.
-     * @param logType Loại log cần đếm (INPUT hoặc OUTPUT).
-     * @return Số lượng request thuộc loại log.
-     */
-    public static int calculateRequestsByType(List<LogEntry> logEntries, String logType) {
-        int count = 0;
-        for (LogEntry entry : logEntries) {
-            if (logType.equalsIgnoreCase(entry.getLogType())) {
-                count++;
-            }
-        }
-        return count;
-    }
 }
-

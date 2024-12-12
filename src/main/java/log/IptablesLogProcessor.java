@@ -20,8 +20,9 @@ public class IptablesLogProcessor {
             // Kiểm tra log hợp lệ
             if (log.contains("SRC=") && log.contains("DST=")) {
                 try {
-                    // Trích xuất các trường dữ liệu từ log
-                    Date timestamp = TimeUtils.parseTimestamp(log.substring(0, 15)); // Phần đầu log chứa thời gian
+                    String timestampPart = log.split(" ")[0];
+                    Date timestamp = TimeUtils.parseTimestamp(timestampPart); // Phần đầu log chứa thời gian
+
                     String inInterface = log.contains("IN=") ? log.split("IN=")[1].split(" ")[0] : null;
                     String outInterface = log.contains("OUT=") ? log.split("OUT=")[1].split(" ")[0] : null;
                     String sourceIP = log.split("SRC=")[1].split(" ")[0];
@@ -34,11 +35,15 @@ public class IptablesLogProcessor {
                     int byteCount = log.contains("BYTES=") ? Integer.parseInt(log.split("BYTES=")[1].split(" ")[0]) : 0;
                     String logType = log.contains("INPUT") ? "INPUT" : log.contains("OUTPUT") ? "OUTPUT" : "UNKNOWN";
 
+                    // Gán trạng thái SUCCESS hoặc FAIL
+                    String status = log.contains("SSH allowed") ? "SUCCESS" : "FAIL";
+
                     // Tạo đối tượng LogEntry
                     LogEntry entry = new LogEntry(
                             timestamp, sourceIP, destinationIP, sourcePort, destinationPort, protocol,
-                            length, packetCount, byteCount, inInterface, outInterface, logType
+                            length, packetCount, byteCount, inInterface, outInterface, logType, status
                     );
+                    entry.setStatus(status); // Gán trạng thái
 
                     // Thêm vào danh sách
                     logEntries.add(entry);
