@@ -2,9 +2,13 @@
 <?import javafx.scene.chart.PieChart?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="controller.MainController" spacing="10" alignment="center">
+    <padding>
+        <Insets top="10" right="10" bottom="10" left="10"/>
+    </padding>
 
-<VBox xmlns:fx="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-      fx:controller="controller.MainController" spacing="10" alignment="center" padding="10">
     <!-- Tổng quan -->
     <HBox spacing="20" alignment="center">
         <VBox>

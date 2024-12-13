@@ -51,7 +51,7 @@ public class MainController {
     @FXML
     public void initialize() {
         // Đọc log từ file
-        List<String> rawLogs = FileUtils.readLogFile("src/main/resources/newinput_log.txt");
+        List<String> rawLogs = FileUtils.readLogFile("src/main/resources/abcdeee.txt");
         List<LogEntry> parsedLogs = IptablesLogProcessor.parseLogs(rawLogs);
         logEntries.addAll(parsedLogs);
 
