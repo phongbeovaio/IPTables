@@ -1,77 +1,187 @@
 package log;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Date;
-import models.LogEntry;
+import models.IptablesModel;
 import utils.TimeUtils;
+
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 
 public class IptablesLogProcessor {
 
     /**
-     * Phân tích danh sách log thô thành các đối tượng LogEntry.
-     *
+     * Phân tích danh sách log thô (chuỗi) thành các đối tượng LogEntry.
+     * Chú ý: Đã có hàm tương tự trong FileUtils (parseIptablesLogLine).
      * @param rawLogs Danh sách log thô.
-     * @return Danh sách các đối tượng LogEntry đã được phân tích.
+     * @return Danh sách LogEntry đã được phân tích.
      */
-    public static List<LogEntry> parseLogs(List<String> rawLogs) {
-        List<LogEntry> logEntries = new ArrayList<>();
-        for (String log : rawLogs) {
-            // Kiểm tra log hợp lệ
-            if (log.contains("SRC=") && log.contains("DST=")) {
-                try {
-                    String timestampPart = log.split(" ")[0];
-                    Date timestamp = TimeUtils.parseTimestamp(timestampPart); // Phần đầu log chứa thời gian
+    public static List<IptablesModel> parseLogs(List<String> rawLogs) {
+        List<IptablesModel> logEntries = new ArrayList<>();
 
-                    String inInterface = log.contains("IN=") ? log.split("IN=")[1].split(" ")[0] : null;
-                    String outInterface = log.contains("OUT=") ? log.split("OUT=")[1].split(" ")[0] : null;
-                    String sourceIP = log.split("SRC=")[1].split(" ")[0];
-                    String destinationIP = log.split("DST=")[1].split(" ")[0];
-                    String protocol = log.contains("PROTO=") ? log.split("PROTO=")[1].split(" ")[0] : "UNKNOWN";
-                    String sourcePort = log.contains("SPT=") ? log.split("SPT=")[1].split(" ")[0] : null;
-                    String destinationPort = log.contains("DPT=") ? log.split("DPT=")[1].split(" ")[0] : null;
-                    int length = log.contains("LEN=") ? Integer.parseInt(log.split("LEN=")[1].split(" ")[0]) : 0;
-                    int packetCount = log.contains("PACKETS=") ? Integer.parseInt(log.split("PACKETS=")[1].split(" ")[0]) : 0;
-                    int byteCount = log.contains("BYTES=") ? Integer.parseInt(log.split("BYTES=")[1].split(" ")[0]) : 0;
-                    String logType = log.contains("INPUT") ? "INPUT" : log.contains("OUTPUT") ? "OUTPUT" : "UNKNOWN";
-
-                    // Gán trạng thái SUCCESS hoặc FAIL
-                    String status = log.contains("SSH allowed") ? "SUCCESS" : "FAIL";
-
-                    // Tạo đối tượng LogEntry
-                    LogEntry entry = new LogEntry(
-                            timestamp, sourceIP, destinationIP, sourcePort, destinationPort, protocol,
-                            length, packetCount, byteCount, inInterface, outInterface, logType, status
-                    );
-                    entry.setStatus(status); // Gán trạng thái
-
-                    // Thêm vào danh sách
-                    logEntries.add(entry);
-
-                } catch (Exception e) {
-                    System.err.println("Lỗi khi phân tích log: " + log);
-                    e.printStackTrace();
+        for (String line : rawLogs) {
+            try {
+                // 1) Tách timestamp (phần đầu, giả sử log "2025-01-15T14:08:55.800240+07:00 ...")
+                int firstSpace = line.indexOf(' ');
+                if (firstSpace < 0) {
+                    // Không đúng format => bỏ qua
+                    continue;
                 }
+                String timePart = line.substring(0, firstSpace).trim();  // "2025-01-15T14:08:55.800240+07:00"
+                String remain    = line.substring(firstSpace).trim();     // "phong-VirtualBox kernel: Dropped UDP: IN=... "
+
+                // Parse sang Date, rồi chuyển sang LocalDateTime
+                Date dateParsed = TimeUtils.parseTimestamp(timePart);
+                LocalDateTime dateTime = null;
+                if (dateParsed != null) {
+                    dateTime = dateParsed.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+                }
+
+                // 2) Tách prefix (vd "Dropped UDP:"), sau đó tách key=value
+                // Sử dụng logic giống FileUtils.parseIptablesLogLine
+                int kernelIndex = remain.indexOf("kernel:");
+                String afterKernel = (kernelIndex >= 0)
+                        ? remain.substring(kernelIndex + "kernel:".length()).trim()
+                        : remain;  // fallback
+
+                // Lấy prefix (trước "IN=")
+                int inIndex = afterKernel.indexOf("IN=");
+                String prefix = (inIndex > 0)
+                        ? afterKernel.substring(0, inIndex).replaceAll(":$", "").trim()
+                        : afterKernel;
+
+                // Tách các cặp key=value
+                String keyValues = (inIndex > 0)
+                        ? afterKernel.substring(inIndex).trim()
+                        : "";
+
+                // 3) Tạo LogEntry
+                IptablesModel entry = new IptablesModel();
+                entry.setTimestamp(dateTime);      // LocalDateTime
+                entry.setLogPrefix(prefix);        // "Dropped UDP", "Accept SSH", v.v.
+
+                // Tách token "IN=...", "OUT=...", "SRC=...", ...
+                String[] tokens = keyValues.split("\\s+");
+                for (String token : tokens) {
+                    int eqIdx = token.indexOf('=');
+                    if (eqIdx < 1) {
+                        // Trường hợp key không có "=" (vd DF) thì tùy ý handle
+                        if ("DF".equalsIgnoreCase(token)) {
+                            entry.setDf(true);
+                        }
+                        continue;
+                    }
+                    String key = token.substring(0, eqIdx).toUpperCase();
+                    String val = token.substring(eqIdx + 1);
+
+                    switch (key) {
+                        case "IN":
+                            entry.setInInterface(val);
+                            break;
+                        case "OUT":
+                            entry.setOutInterface(val);
+                            break;
+                        case "SRC":
+                            entry.setSourceIP(val);
+                            break;
+                        case "DST":
+                            entry.setDestinationIP(val);
+                            break;
+                        case "PROTO":
+                            entry.setProtocol(val);
+                            break;
+                        case "LEN":
+                            entry.setLength(tryParseInt(val));
+                            break;
+                        case "SPT":
+                            entry.setSourcePort(tryParseInt(val));
+                            break;
+                        case "DPT":
+                            entry.setDestinationPort(tryParseInt(val));
+                            break;
+                        case "MAC":
+                            entry.setMacAddress(val);
+                            break;
+                        case "TOS":
+                            entry.setTos(val);
+                            break;
+                        case "PREC":
+                            entry.setPrec(val);
+                            break;
+                        case "TTL":
+                            entry.setTtl(tryParseInt(val));
+                            break;
+                        case "ID":
+                            entry.setId(tryParseInt(val));
+                            break;
+                        case "WINDOW":
+                            entry.setWindow(tryParseInt(val));
+                            break;
+                        case "URGP":
+                            entry.setUrgp(tryParseInt(val));
+                            break;
+                        default:
+                            // key khác không quan tâm
+                            break;
+                    }
+                }
+
+                logEntries.add(entry);
+
+            } catch (Exception e) {
+                System.err.println("Lỗi khi parse log dòng: " + line);
+                e.printStackTrace();
             }
         }
+
         return logEntries;
     }
 
     /**
-     * Tìm kiếm log chứa chuỗi cụ thể.
-     *
-     * @param logEntries Danh sách các đối tượng LogEntry.
-     * @param searchTerm Chuỗi cần tìm kiếm.
-     * @return Danh sách các log khớp với chuỗi tìm kiếm.
+     * Tìm kiếm log theo 1 chuỗi. (VD: IP, protocol, prefix…)
+     * @param logEntries Danh sách LogEntry
+     * @param searchTerm Từ khóa tìm
+     * @return Danh sách LogEntry khớp
      */
-    public static List<LogEntry> searchLogs(List<LogEntry> logEntries, String searchTerm) {
-        List<LogEntry> results = new ArrayList<>();
-        for (LogEntry entry : logEntries) {
-            if ((entry.getSourceIP() != null && entry.getSourceIP().contains(searchTerm)) ||
-                    (entry.getDestinationIP() != null && entry.getDestinationIP().contains(searchTerm)) ||
-                    (entry.getProtocol() != null && entry.getProtocol().contains(searchTerm)) ||
-                    (entry.getSourcePort() != null && entry.getSourcePort().contains(searchTerm)) ||
-                    (entry.getDestinationPort() != null && entry.getDestinationPort().contains(searchTerm))) {
+    public static List<IptablesModel> searchLogs(List<IptablesModel> logEntries, String searchTerm) {
+        List<IptablesModel> results = new ArrayList<>();
+        if (searchTerm == null || searchTerm.isEmpty()) {
+            return results; // hoặc trả luôn logEntries nếu muốn
+        }
+
+        String lowerSearch = searchTerm.toLowerCase();
+
+        for (IptablesModel entry : logEntries) {
+            boolean match = false;
+
+            if (entry.getLogPrefix() != null
+                    && entry.getLogPrefix().toLowerCase().contains(lowerSearch)) {
+                match = true;
+            }
+            if (!match && entry.getSourceIP() != null
+                    && entry.getSourceIP().toLowerCase().contains(lowerSearch)) {
+                match = true;
+            }
+            if (!match && entry.getDestinationIP() != null
+                    && entry.getDestinationIP().toLowerCase().contains(lowerSearch)) {
+                match = true;
+            }
+            if (!match && entry.getProtocol() != null
+                    && entry.getProtocol().toLowerCase().contains(lowerSearch)) {
+                match = true;
+            }
+            // sourcePort, destinationPort là Integer => convert sang String để .contains(...)
+            if (!match && entry.getSourcePort() != null
+                    && String.valueOf(entry.getSourcePort()).contains(searchTerm)) {
+                match = true;
+            }
+            if (!match && entry.getDestinationPort() != null
+                    && String.valueOf(entry.getDestinationPort()).contains(searchTerm)) {
+                match = true;
+            }
+
+            if (match) {
                 results.add(entry);
             }
         }
@@ -79,20 +189,45 @@ public class IptablesLogProcessor {
     }
 
     /**
-     * Tìm log trong một khoảng thời gian.
-     *
-     * @param logEntries Danh sách các đối tượng LogEntry.
-     * @param startTime Thời gian bắt đầu.
-     * @param endTime Thời gian kết thúc.
-     * @return Danh sách các log trong khoảng thời gian.
+     * Lọc log theo khoảng thời gian (startTime, endTime) - đều là Date.
+     * Nhưng LogEntry.timestamp là LocalDateTime => chuyển đổi để so sánh.
      */
-    public static List<LogEntry> filterLogsByTime(List<LogEntry> logEntries, Date startTime, Date endTime) {
-        List<LogEntry> results = new ArrayList<>();
-        for (LogEntry entry : logEntries) {
-            if (TimeUtils.isWithinTimeRange(entry.getTimestamp(), startTime, endTime)) {
+    public static List<IptablesModel> filterLogsByTime(List<IptablesModel> logEntries, Date startTime, Date endTime) {
+        List<IptablesModel> results = new ArrayList<>();
+        if (startTime == null || endTime == null) {
+            // Tuỳ nhu cầu, có thể trả về rỗng hoặc trả về toàn bộ
+            return results;
+        }
+
+        for (IptablesModel entry : logEntries) {
+            if (entry.getTimestamp() == null) {
+                continue;
+            }
+            // Chuyển LocalDateTime -> Date
+            Date logDate = toDate(entry.getTimestamp());
+            // Dùng TimeUtils.isWithinTimeRange
+            if (TimeUtils.isWithinTimeRange(logDate, startTime, endTime)) {
                 results.add(entry);
             }
         }
         return results;
+    }
+
+    /**
+     * Hàm phụ: chuyển LocalDateTime -> Date (dùng zone mặc định)
+     */
+    private static Date toDate(LocalDateTime ldt) {
+        return Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
+    }
+
+    /**
+     * Hàm phụ parse integer
+     */
+    private static Integer tryParseInt(String val) {
+        try {
+            return Integer.valueOf(val);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

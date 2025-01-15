@@ -1,52 +1,77 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.scene.chart.PieChart?>
-<?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.chart.*?>
 <?import javafx.geometry.Insets?>
-<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-      fx:controller="controller.MainController" spacing="10" alignment="center">
+<?import javafx.geometry.Pos?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.TextField?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="controller.MainController"
+      spacing="10" alignment="TOP_CENTER">
+
     <padding>
         <Insets top="10" right="10" bottom="10" left="10"/>
     </padding>
 
-    <!-- Tổng quan -->
-    <HBox spacing="20" alignment="center">
-        <VBox>
-            <Label text="Total Request:"/>
+    <!-- Row 1: 3 stats -->
+    <HBox spacing="40" alignment="CENTER">
+        <VBox alignment="CENTER">
+            <Label text="Total Requests:" style="-fx-font-weight: bold;"/>
             <Label fx:id="totalRequestLabel" text="0"/>
         </VBox>
-        <VBox>
-            <Label text="Total Fail:"/>
+        <VBox alignment="CENTER">
+            <Label text="Total Dropped:" style="-fx-font-weight: bold;"/>
             <Label fx:id="totalFailLabel" text="0"/>
         </VBox>
-        <VBox>
-            <Label text="Total Size:"/>
+        <VBox alignment="CENTER">
+            <Label text="Total Size:" style="-fx-font-weight: bold;"/>
             <Label fx:id="totalSizeLabel" text="0 bytes"/>
         </VBox>
     </HBox>
 
-    <!-- Biểu đồ -->
-    <PieChart fx:id="requestPieChart" prefWidth="500" prefHeight="300"/>
+    <!-- Row 2: PieChart + BarChart -->
+    <HBox spacing="20" alignment="CENTER">
+        <PieChart fx:id="requestPieChart" prefWidth="400" prefHeight="300"/>
+        <BarChart fx:id="logBarChart" prefWidth="400" prefHeight="300">
+            <xAxis>
+                <CategoryAxis label="Category"/>
+            </xAxis>
+            <yAxis>
+                <NumberAxis label="Count"/>
+            </yAxis>
+        </BarChart>
+    </HBox>
 
-    <!-- Tìm kiếm và lọc -->
-    <HBox spacing="10" alignment="center">
+    <!-- Row 3: Filter UI -->
+    <HBox spacing="10" alignment="CENTER">
         <Label text="From:"/>
         <DatePicker fx:id="fromDatePicker"/>
         <Label text="To:"/>
         <DatePicker fx:id="toDatePicker"/>
+
         <TextField fx:id="searchField" promptText="Search IP or Protocol"/>
         <Button text="Search" onAction="#onSearchClicked"/>
     </HBox>
 
-    <!-- Bảng hiển thị log -->
-    <TableView fx:id="logTable" prefWidth="800" prefHeight="400">
+    <!-- Row 4: Table -->
+    <TableView fx:id="logTable" prefWidth="800" prefHeight="300">
         <columns>
-            <TableColumn fx:id="timestampColumn" text="Timestamp"/>
-            <TableColumn fx:id="sourceIPColumn" text="Source IP"/>
-            <TableColumn fx:id="destinationIPColumn" text="Destination IP"/>
-            <TableColumn fx:id="protocolColumn" text="Protocol"/>
-            <TableColumn fx:id="lengthColumn" text="Length"/>
-            <TableColumn fx:id="statusColumn" text="Status"/>
+            <!-- Timestamps as LocalDateTime => can define CellValueFactory as String or Object -->
+            <TableColumn fx:id="timestampColumn" text="Timestamp" prefWidth="150"/>
+            <TableColumn fx:id="prefixColumn" text="Prefix" prefWidth="140"/>
+            <TableColumn fx:id="sourceIPColumn" text="Source IP" prefWidth="120"/>
+            <TableColumn fx:id="destinationIPColumn" text="Destination IP" prefWidth="120"/>
+            <TableColumn fx:id="protocolColumn" text="Protocol" prefWidth="80"/>
+            <TableColumn fx:id="sourcePortColumn" text="Src Port" prefWidth="70"/>
+            <TableColumn fx:id="destinationPortColumn" text="Dst Port" prefWidth="70"/>
+            <TableColumn fx:id="inInterfaceColumn" text="In" prefWidth="80"/>
+            <TableColumn fx:id="outInterfaceColumn" text="Out" prefWidth="80"/>
+            <TableColumn fx:id="macColumn" text="MAC" prefWidth="150"/>
+            <TableColumn fx:id="lengthColumn" text="Length" prefWidth="60"/>
         </columns>
     </TableView>
+
 </VBox>

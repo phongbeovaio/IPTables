@@ -1,64 +1,77 @@
 package log;
 
-import models.LogEntry;
+import models.IptablesModel;
 import utils.TimeUtils;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
 
 public class LogAnalyzer {
 
     /**
-     * Tính tổng số request trong danh sách log.
-     *
-     * @param logEntries Danh sách các log đã phân tích.
-     * @return Tổng số request.
+     * Tính tổng số request (số dòng log) trong danh sách.
      */
-    public static int calculateTotalRequests(List<LogEntry> logEntries) {
-        return logEntries.size();
+    public static int calculateTotalRequests(List<IptablesModel> logEntries) {
+        return (logEntries == null) ? 0 : logEntries.size();
     }
 
     /**
-     * Tính thông lượng (tổng chiều dài của tất cả gói tin) từ trường LEN.
-     *
-     * @param logEntries Danh sách các log đã phân tích.
-     * @return Tổng thông lượng (bytes).
+     * Tính tổng 'length' của tất cả gói tin (nếu null thì coi như 0).
      */
-    public static int calculateThroughput(List<LogEntry> logEntries) {
-        int totalLength = 0;
-        for (LogEntry entry : logEntries) {
-            totalLength += entry.getLength();
+    public static long calculateThroughput(List<IptablesModel> logEntries) {
+        long total = 0;
+        if (logEntries == null) return 0;
+
+        for (IptablesModel entry : logEntries) {
+            if (entry.getLength() != null) {
+                total += entry.getLength();
+            }
         }
-        return totalLength;
+        return total;
     }
 
     /**
-     * Tính số lượng request bị chặn (status = FAIL).
-     *
-     * @param logEntries Danh sách log đã phân tích.
-     * @return Tổng số request bị chặn.
+     * Tính số lượng request "bị chặn".
+     * Ở iptables log, ta có thể dựa vào prefix "Dropped..." để coi là chặn.
+     * Prefix chứa "Dropped" => blocked.
      */
-    public static int calculateBlockedRequests(List<LogEntry> logEntries) {
+    public static int calculateBlockedRequests(List<IptablesModel> logEntries) {
+        if (logEntries == null) return 0;
         return (int) logEntries.stream()
-                .filter(entry -> "FAIL".equals(entry.getStatus()))
+                .filter(e -> {
+                    String p = e.getLogPrefix();
+                    return p != null && p.toLowerCase().contains("dropped");
+                })
                 .count();
     }
 
     /**
-     * Tính số lượng request trong một khung thời gian cụ thể.
-     *
-     * @param logEntries Danh sách các log đã phân tích.
-     * @param startTime Thời gian bắt đầu.
-     * @param endTime Thời gian kết thúc.
-     * @return Số lượng request trong khung thời gian.
+     * Tính số lượng request trong khoảng thời gian [startTime, endTime].
+     * Chú ý chuyển LocalDateTime -> Date để xài TimeUtils.isWithinTimeRange
      */
-    public static int calculateRequestsInTimeRange(List<LogEntry> logEntries, Date startTime, Date endTime) {
+    public static int calculateRequestsInTimeRange(List<IptablesModel> logEntries, Date startTime, Date endTime) {
+        if (logEntries == null || startTime == null || endTime == null) return 0;
+
         int count = 0;
-        for (LogEntry entry : logEntries) {
-            if (TimeUtils.isWithinTimeRange(entry.getTimestamp(), startTime, endTime)) {
+        for (IptablesModel entry : logEntries) {
+            LocalDateTime ldt = entry.getTimestamp();
+            if (ldt == null) continue;
+
+            // Chuyển sang Date
+            Date logDate = toDate(ldt);
+            if (TimeUtils.isWithinTimeRange(logDate, startTime, endTime)) {
                 count++;
             }
         }
         return count;
+    }
+
+    /**
+     * Chuyển LocalDateTime -> Date (zone mặc định)
+     */
+    private static Date toDate(LocalDateTime ldt) {
+        return Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
     }
 }

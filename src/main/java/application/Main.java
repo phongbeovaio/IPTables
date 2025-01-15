@@ -1,3 +1,4 @@
+/*
 package application;
 
 import charts.ChartGenerator;
@@ -107,6 +108,7 @@ public class Main {
                     ChartGenerator.generatePieChartForIPFrequency("IP Frequency Distribution", ipFrequency);
                     break;
                 */
+/*
                 case 7: // Thoát
                     System.out.println("Thoát chương trình.");
                     scanner.close();
@@ -118,3 +120,4 @@ public class Main {
         }
     }
 }
+*/
